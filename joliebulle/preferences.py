@@ -44,6 +44,10 @@ class DialogPref(QtWidgets.QDialog):
             self.ui.doubleSpinBoxGrainRetention.setValue(int(settings.conf.value("GrainRetention")))
         except :
             pass
+        try:
+            self.ui.lineEditServerUrl.setText(settings.conf.value("SyncServerUrl"))
+        except:
+            pass
 
         #les connexions
         self.ui.pushButtonChangeLib.clicked.connect(self.changePushed)
@@ -72,6 +76,7 @@ class DialogPref(QtWidgets.QDialog):
         settings.conf.setValue("GrainTemp", self.ui.spinBoxGrainTemp.value())
         settings.conf.setValue("FudgeFactor", self.ui.doubleSpinBoxFudgeFactor.value())
         settings.conf.setValue("GrainRetention", self.ui.doubleSpinBoxGrainRetention.value())
+        settings.conf.setValue("SyncServerUrl", self.ui.lineEditServerUrl.text())
 
         self.prefAccepted.emit()
 
