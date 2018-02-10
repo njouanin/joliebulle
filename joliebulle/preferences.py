@@ -45,7 +45,13 @@ class DialogPref(QtWidgets.QDialog):
         except :
             pass
         try:
-            self.ui.lineEditServerUrl.setText(settings.conf.value("SyncServerUrl"))
+            self.ui.lineEditServerUrl.setText(settings.conf.value("KintoServerUrl"))
+            bucket = settings.conf.value("KintoDefaultBucket")
+            if bucket is None or bucket == "":
+                bucket="joliebulle"
+            self.ui.lineEditDefaultBucket.setText(bucket)
+            self.ui.lineEditUserCred.setText(settings.conf.value("KintoBasicUserCred"))
+            self.ui.lineEditPasswordCred.setText(settings.conf.value("KintoBasicPasswordCred"))
         except:
             pass
 
@@ -76,7 +82,10 @@ class DialogPref(QtWidgets.QDialog):
         settings.conf.setValue("GrainTemp", self.ui.spinBoxGrainTemp.value())
         settings.conf.setValue("FudgeFactor", self.ui.doubleSpinBoxFudgeFactor.value())
         settings.conf.setValue("GrainRetention", self.ui.doubleSpinBoxGrainRetention.value())
-        settings.conf.setValue("SyncServerUrl", self.ui.lineEditServerUrl.text())
+        settings.conf.setValue("KintoServerUrl", self.ui.lineEditServerUrl.text())
+        settings.conf.setValue("KintoDefaultBucket", self.ui.lineEditDefaultBucket.text())
+        settings.conf.setValue("KintoBasicUserCred", self.ui.lineEditUserCred.text())
+        settings.conf.setValue("KintoBasicPasswordCred", self.ui.lineEditPasswordCred.text())
 
         self.prefAccepted.emit()
 
