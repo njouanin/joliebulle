@@ -35,6 +35,7 @@ from PyQt5 import QtWebKitWidgets
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtPrintSupport
+from kinto_http import Client
 from reader_ui import *
 from settings import *
 from about import *
@@ -120,6 +121,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
 ######################################################################################
         self.settings = Settings()
         self.initRep()
+        self.initKintoClient()
         self.dlgEditG = Dialog(self)
         self.dlgEditH = DialogH(self)
         self.dlgEditD = DialogD(self)
@@ -511,8 +513,27 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
         else :
             recettes_dir = settings.conf.value("pathUnix")
         self.initRep()
+        self.initKintoClient()
         self.listdir(recettes_dir)
         self.showLib()
+
+    def initKintoClient(self):
+        self.kinto_client = None
+        kinto_url = settings.conf.value("KintoServerUrl")
+        if kinto_url is not None and kinto_url != "":
+            kinto_bucket = settings.conf.value("KintoDefaultBucket")
+            kinto_credentials=(settings.conf.value("KintoBasicUserCred"), settings.conf.value("KintoBasicPasswordCred"))
+            logger.debug(kinto_credentials)
+            if kinto_bucket is None or kinto_bucket == "":
+                kinto_bucket = "joliebulle"
+                logger.debug("using default bucket 'joliebulle'")
+            try:
+                tmp_client = Client(server_url=kinto_url, auth = kinto_credentials)
+                tmp_client.create_bucket(id=kinto_bucket, if_not_exists=True)
+                self.kinto_client = Client(server_url=kinto_url, bucket=kinto_bucket, auth = kinto_credentials)
+                logger.info("Synchronize with kinto server at :" + repr(self.kinto_client))
+            except Exception as e:
+                logger.warn("Failed to initialize Kinto synchronisation: " + repr(e))
 
 
     @QtCore.pyqtSlot()
