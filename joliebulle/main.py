@@ -423,33 +423,20 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
     #     self.widgetColor.setStyleSheet("background-color :" + color)
 
 
-
-    def listdir(self, rootdir) :
-        self.recipesSummary="["
-        fileList=[]
-        filenameList=[]
+    def liste_fichiers_recettes(self, rootdir):
         for root, subFolders, files in os.walk(rootdir):
             for file2 in files:
-                fileList.append(os.path.join(root,file2))
-                filenameList.append(file2)
+                yield (file2, os.path.join(root,file2))
 
-        #on parse
-        j=0
-        while j < len(filenameList) :
-            j=j+1
-            recipe = fileList[j-1]
+    def listdir(self, rootdir) :
+        summaries=[]
+        for filename, recipe in self.liste_fichiers_recettes(rootdir):
             try :
-                self.recipesSummary += str (self.jsonRecipeLib(recipe))
-                if j < len(filenameList) :
-                    self.recipesSummary += ","
+                summaries.append(self.jsonRecipeLib(recipe))
             except :
                 logger.debug("le fichier %s n'est pas une recette" %(recipe))
-
-        self.recipesSummary += "]"
-        logger.debug("%s fichiers détectés" %(len(filenameList)))
-
-
-
+        self.recipesSummary = "[" + ",".join(summaries) + "]"
+        logger.debug("%s recettes détectées" %(len(summaries)))
 
 
 
@@ -531,6 +518,11 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
                 tmp_client = Client(server_url=kinto_url, auth = kinto_credentials)
                 tmp_client.create_bucket(id=kinto_bucket, if_not_exists=True)
                 self.kinto_client = Client(server_url=kinto_url, bucket=kinto_bucket, auth = kinto_credentials)
+
+                # Création des collections
+                self.kinto_client.create_collection(id='recipes', if_not_exists=True)
+                self.kinto_client.create_collection(id='ingredients', if_not_exists=True)
+                
                 logger.info("Synchronize with kinto server at :" + repr(self.kinto_client))
             except Exception as e:
                 logger.warn("Failed to initialize Kinto synchronisation: " + repr(e))
