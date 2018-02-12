@@ -20,6 +20,7 @@
 
 from helper.recipeimporter.importBeerXML import *
 from helper.recipeimporter.importBSMX import *
+from helper.recipeimporter.importDict import *
 
 RecipeImporterRepository = {
     "beerxml": {
@@ -39,5 +40,9 @@ RecipeImporterRepository = {
         MashStep: importBSMXMashStep,
         Misc: importBSMXMisc,
         Yeast: importBSMXYeast
+    },
+    "dict": {
+        Recipe: importDictRecipe
     }
+
 }

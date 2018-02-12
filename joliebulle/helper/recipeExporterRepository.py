@@ -21,9 +21,11 @@
 from helper.recipeexporter.exportBeerXML import *
 from helper.recipeexporter.exportBBCode import *
 from helper.recipeexporter.exportJson import *
+from helper.recipeexporter.exportDict import *
 
 RecipeExporterRepository = {
     "beerxml": exportBeerXML,
     "bbcode": exportBBCode,
+    "dict": exportDict,
     "json": exportJson
 }

@@ -30,9 +30,8 @@ from model.constants import *
 from settings import *
 
 
-def exportJson(recipe) :
+def exportDict(recipe) :
     settings = Settings()
-    data = []
     dic = {}
 
     dic['path'] = recipe.path
@@ -70,7 +69,6 @@ def exportJson(recipe) :
 
     hops = []
     for h in recipe.listeHops:
-        hView = HopView(h)
         hop = {}
         hop['name'] = h.name
         if h.form == HOP_FORM_PELLET :
@@ -89,7 +87,6 @@ def exportJson(recipe) :
 
     fermentables = []
     for f in recipe.listeFermentables:
-        fView = FermentableView(f)
         fermentable = {}
         fermentable['name'] = f.name
         fermentable['type'] = f.type
@@ -100,14 +97,12 @@ def exportJson(recipe) :
             fermentable['afterBoil'] = 'TRUE'
         else :
             fermentable['afterBoil'] = 'FALSE'
-        # fermentable['afterBoilView'] = fView.fermentableUseDisplay()
         fermentable['recoMash'] = f.recommendMash
         fermentables.append(fermentable)
     dic['fermentables'] = fermentables
 
     yeasts = []
     for y in recipe.listeYeasts :
-        yView = YeastView(y)
         yeast = {}
         yeast['name'] = y.name
         yeast['product_id'] = y.productId
@@ -119,7 +114,6 @@ def exportJson(recipe) :
 
     miscs = []
     for m in recipe.listeMiscs :
-        mView = MiscView(m)
         misc = {}
         misc['name'] = m.name
         misc['amount'] = m.amount
@@ -137,12 +131,10 @@ def exportJson(recipe) :
 
     steps = []
     for s in recipe.mash.listeSteps :
-        mashStepView = MashStepView(s)
         step = {}
         step['name'] = s.name
         step['time'] = s.time
         step['temp'] = s.temp
-        step['type_view'] = mashStepView.mashTypeDisplay()
         step['type'] = s.type
         steps.append(step)
     mashProfile['steps'] = steps
@@ -150,5 +142,4 @@ def exportJson(recipe) :
 
     dic['notes'] = recipe.recipeNotes
 
-    data.append(dic)
-    return json.dumps(data)
+    return dic

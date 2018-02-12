@@ -36,6 +36,7 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import QtPrintSupport
 from kinto_http import Client
+from kinto_http.exceptions import KintoException
 from reader_ui import *
 from settings import *
 from about import *
@@ -122,6 +123,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
         self.settings = Settings()
         self.initRep()
         self.initKintoClient()
+        self.syncRecipes()
         self.dlgEditG = Dialog(self)
         self.dlgEditH = DialogH(self)
         self.dlgEditD = DialogD(self)
@@ -300,9 +302,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
 
     @QtCore.pyqtSlot(str, str)
     def saveRecipe(self, recipe, path) :
-        # if not path :
-        #     path = recettes_dir + "/" + str(int(time.time())) + ".xml"
-        print(path)
+        logger.debug(path)
         recipeFile = QtCore.QFile(path)
         if recipeFile.open(QtCore.QIODevice.WriteOnly):
             try:
@@ -316,9 +316,11 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
             pass
 
     @QtCore.pyqtSlot(result=str)
-    def createPath(self) :
-        path = recettes_dir + "/" + str(int(time.time()*10)) + ".xml"
-        print (path)
+    def createPath(self, file_id=None) :
+        if file_id is None:
+            file_id = str(int(time.time()*10))
+        path = recettes_dir + "/" + file_id + ".xml"
+        logger.debug(path)
         return path
 
     @QtCore.pyqtSlot()
@@ -527,6 +529,56 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
             except Exception as e:
                 logger.warn("Failed to initialize Kinto synchronisation: " + repr(e))
 
+    def syncRecipes(self):
+        recipes_collection = 'recipes'
+        if self.kinto_client is None:
+            return
+
+        # Sync local recipes
+        id_recettes_locales=[]
+        for filename, full_filename in self.liste_fichiers_recettes(recettes_dir):
+            recipe_id = filename.replace('.xml', '')
+            id_recettes_locales.append(recipe_id)
+            try:
+                remote_recipe = self.kinto_client.get_record(id=recipe_id, collection=recipes_collection)
+                logger.debug("recipe " + recipe_id + " already exists on server, update if needed")
+                remote_timestamp = int(remote_recipe['data']['last_modified']/1000)
+                local_timestamp = int(os.path.getmtime(full_filename))
+                logger.debug(str(remote_timestamp) + " " + str(local_timestamp))
+                if remote_timestamp < local_timestamp:
+                    logger.info("Mise à jour de la recette distante " + recipe_id)
+                    # La recette distant doit être mise à jour
+                    local_recipe = Recipe.parse(full_filename)
+                    data = local_recipe.export("dict")
+                    ret = self.kinto_client.update_record(id=recipe_id, collection=recipes_collection, data=data)
+                    new_timestamp = ret['data']['last_modified']
+                    #MAJ du mtime du fichier pour marquer la synchronisation
+                    os.utime(full_filename, times=(int(new_timestamp/1000), int(new_timestamp/1000)))
+                if remote_timestamp > local_timestamp:
+                    # La recette distante doit être mise à jour
+                    logger.info("Mise à jour de la recette locale " + recipe_id)
+                    new_recipe = Recipe.parse(remote_recipe['data'], "dict")
+                    self.doEnregistrerRecette(new_recipe, full_filename)
+                    os.utime(full_filename, times=(int(remote_timestamp), int(remote_timestamp)))
+            except KintoException:
+                logger.debug("recipe " + recipe_id + " doesn't exists on server, sending it")
+                new_recipe = Recipe.parse(full_filename)
+                data = new_recipe.export("dict")
+                ret = self.kinto_client.create_record(id=recipe_id, collection=recipes_collection, data=data)
+                new_timestamp = ret['data']['last_modified']
+                #MAJ du mtime du fichier pour marquer la synchronisation
+                os.utime(full_filename, times=(int(new_timestamp/1000), int(new_timestamp/1000)))
+
+        recipes = self.kinto_client.get_records(collection='recipes')
+        for recipe in recipes:
+            if recipe['id'] not in id_recettes_locales:
+                #Recette distante non présente localement
+                new_recipe = Recipe.parse(recipe, "dict")
+                fullname = recipe['id'] + ".xml"
+                logger.debug("Création de la recette " + fullname)
+                self.doEnregistrerRecette(new_recipe, os.path.join(recettes_dir, fullname))
+                os.utime(full_filename, times=(int(remote_timestamp), int(remote_timestamp)))
+
 
     @QtCore.pyqtSlot()
     def switchToLibrary(self) :
@@ -604,20 +656,22 @@ class AppWindow(QtWidgets.QMainWindow,Ui_MainWindow):
         about.show()
 
 
-    def enregistrerRecette(self, destination):
+    def doEnregistrerRecette(self, recipe, destination):
         recipeFile = QtCore.QFile(destination)
         if recipeFile.open(QtCore.QIODevice.WriteOnly):
             try:
                 stream = QtCore.QTextStream(recipeFile)
                 stream.setCodec("UTF-8")
-                stream << self.recipe.export("beerxml")
+                stream << recipe.export("beerxml")
             finally:
                 recipeFile.close()
         else:
             # TODO : Prévenir l'utilisateur en cas d'échec de l'enregistrement
             pass
-        self.fileSaved = True
 
+    def enregistrerRecette(self, destination):
+        self.doEnregistrerRecette(self.recipe, destination)
+        self.fileSaved = True
 
     def enregistrer (self) :
         if self.recipe.name != self.lineEditRecette.text() :
@@ -912,7 +966,7 @@ if __name__ == "__main__":
 
     main_window = AppWindow()
     #main_window = MainWindow()
-    # main_window.show()
+    main_window.show()
     main_window.showMaximized()
 
     logger.debug("UI initialized");
